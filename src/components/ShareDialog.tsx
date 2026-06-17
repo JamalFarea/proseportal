@@ -79,7 +79,7 @@ export function ShareDialog({ open, onOpenChange }: ShareDialogProps) {
 
       toast({
         title: "Invitation Sent",
-        description: `${email} has been invited as ${role}.`,
+        description: `${email} has been invited as ${role}. They'll receive an email.`,
       });
       setEmail("");
     } catch {
