@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useFirestore, useUser, useCollection } from "@/firebase";
 import { collection, query, orderBy, deleteDoc, doc, setDoc, updateDoc } from "firebase/firestore";
 import { Document, Folder } from "@/lib/types";
+import { guestDocuments, isGuest } from "@/lib/guest-data";
 import { Header } from "@/components/Header";
 import { DocumentCard } from "@/components/DocumentCard";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import {
   DropzoneTrigger,
   useDropzone,
 } from "@/components/ui/dropzone";
-import { Plus, Search, FileX, Folder as FolderIcon, Hash, Settings2, ShieldCheck, Cloud, Upload, Trash2Icon, Sidebar, X } from "lucide-react";
+import { Plus, Search, FileX, Folder as FolderIcon, Hash, Settings2, ShieldCheck, Cloud, Upload, Trash2Icon, Sidebar, X, Eye, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,21 +26,18 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
-  
+
+  const isGuestUser = !authLoading && !user;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login");
-    }
-  }, [user, authLoading, router]);
 
   const docsQuery = useMemo(() => {
     if (!firestore || !user) return null;
@@ -158,15 +156,19 @@ export default function Dashboard() {
     });
   };
 
-  const filteredDocs = documents.filter(doc => {
-    const matchesSearch = doc.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const displayedDocs = isGuestUser
+    ? guestDocuments
+    : (documents as (Document & { id: string })[]);
+
+  const filteredDocs = displayedDocs.filter(doc => {
+    const matchesSearch = doc.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           doc.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           doc.summary?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFolder = selectedFolderId ? doc.folderId === selectedFolderId : true;
     return matchesSearch && matchesFolder;
-  }) as Document[];
+  });
 
-  if (authLoading || docsLoading || foldersLoading) {
+  if (authLoading || (!isGuestUser && (docsLoading || foldersLoading))) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Header />
@@ -195,7 +197,7 @@ export default function Dashboard() {
           aria-label="Toggle sidebar"
         >
           {sidebarOpen ? <X className="h-4 w-4" /> : <Sidebar className="h-4 w-4" />}
-          {sidebarOpen ? "Close" : "Folders & Settings"}
+          {sidebarOpen ? "Close" : "Sidebar"}
         </button>
 
         <aside className={cn(
@@ -211,51 +213,74 @@ export default function Dashboard() {
           >
             <X className="h-5 w-5" />
           </button>
-          <div className="bg-primary/5 border border-primary/20 p-4 rounded-none space-y-2">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
-              <Cloud className="h-3.5 w-3.5" />
-              Cloud Sync: Active
-            </div>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
-              Your workspace is connected to Firestore production.
-            </p>
-          </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Folders</h2>
-              <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-none transition-colors" onClick={handleCreateFolder}>
-                <Plus className="h-3.5 w-3.5" />
+          {isGuestUser && (
+            <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-none space-y-3">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                <Eye className="h-3.5 w-3.5" />
+                Guest Mode
+              </div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
+                You are viewing demo documents. Sign in to create your own workspace.
+              </p>
+              <Button asChild size="sm" className="w-full rounded-none h-8 text-[10px] font-black uppercase tracking-widest bg-amber-600 hover:bg-amber-700 text-white">
+                <Link href="/login">
+                  <LogIn className="h-3 w-3 mr-1" />
+                  Sign In
+                </Link>
               </Button>
             </div>
-            <div className="space-y-0.5">
-              <Button 
-                variant="ghost" 
-                className={cn(
-                  "w-full justify-start gap-3 h-9 text-xs font-bold uppercase tracking-widest transition-all rounded-none px-3",
-                  selectedFolderId === null ? "bg-black text-white dark:bg-white dark:text-black" : "hover:bg-muted"
-                )}
-                onClick={() => setSelectedFolderId(null)}
-              >
-                <Hash className="h-3.5 w-3.5" />
-                All Projects
-              </Button>
-              {folders.map(folder => (
-                <Button 
-                  key={folder.id}
-                  variant="ghost" 
+          )}
+
+          {!isGuestUser && (
+            <div className="bg-primary/5 border border-primary/20 p-4 rounded-none space-y-2">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
+                <Cloud className="h-3.5 w-3.5" />
+                Cloud Sync: Active
+              </div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
+                Your workspace is connected to Firestore production.
+              </p>
+            </div>
+          )}
+
+          {!isGuestUser && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Folders</h2>
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-none transition-colors" onClick={handleCreateFolder}>
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <div className="space-y-0.5">
+                <Button
+                  variant="ghost"
                   className={cn(
                     "w-full justify-start gap-3 h-9 text-xs font-bold uppercase tracking-widest transition-all rounded-none px-3",
-                    selectedFolderId === folder.id ? "bg-black text-white dark:bg-white dark:text-black" : "hover:bg-muted"
+                    selectedFolderId === null ? "bg-black text-white dark:bg-white dark:text-black" : "hover:bg-muted"
                   )}
-                  onClick={() => setSelectedFolderId(folder.id)}
+                  onClick={() => setSelectedFolderId(null)}
                 >
-                  <FolderIcon className="h-3.5 w-3.5" />
-                  <span className="truncate">{folder.name}</span>
+                  <Hash className="h-3.5 w-3.5" />
+                  All Projects
                 </Button>
-              ))}
+                {folders.map(folder => (
+                  <Button
+                    key={folder.id}
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start gap-3 h-9 text-xs font-bold uppercase tracking-widest transition-all rounded-none px-3",
+                      selectedFolderId === folder.id ? "bg-black text-white dark:bg-white dark:text-black" : "hover:bg-muted"
+                    )}
+                    onClick={() => setSelectedFolderId(folder.id)}
+                  >
+                    <FolderIcon className="h-3.5 w-3.5" />
+                    <span className="truncate">{folder.name}</span>
+                  </Button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="space-y-4">
             <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">System</h2>
@@ -272,68 +297,79 @@ export default function Dashboard() {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 pb-6 border-b border-border">
             <div className="space-y-3">
               <h1 className="text-4xl font-black tracking-tighter uppercase leading-none">
-                {selectedFolderId ? folders.find(f => f.id === selectedFolderId)?.name : "Overview"}
+                {selectedFolderId && !isGuestUser ? folders.find(f => f.id === selectedFolderId)?.name : isGuestUser ? "Demo Workspace" : "Overview"}
               </h1>
               <div className="flex items-center gap-2 text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
-                <ShieldCheck className="h-3 w-3 text-green-500" />
+                {isGuestUser ? (
+                  <Eye className="h-3 w-3 text-amber-500" />
+                ) : (
+                  <ShieldCheck className="h-3 w-3 text-green-500" />
+                )}
                 <span>{filteredDocs.length} Documents</span>
                 <span>/</span>
-                <span className="text-black dark:text-white">Authenticated Session</span>
+                <span className={isGuestUser ? "text-amber-600 dark:text-amber-400" : "text-black dark:text-white"}>
+                  {isGuestUser ? "Guest Session" : "Authenticated Session"}
+                </span>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
               <div className="relative flex-1 sm:flex-initial">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input 
-                  placeholder="FILTER..." 
+                <Input
+                  placeholder="FILTER..."
                   className="pl-10 h-10 w-full sm:w-48 md:w-64 bg-transparent rounded-none border-border focus-visible:ring-black dark:focus-visible:ring-white font-bold uppercase text-[10px] tracking-widest"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Dropzone {...uploadDropzone} className="relative">
-                <div className="flex items-center gap-3">
-                  <DropzoneTrigger className="gap-2 rounded-none px-5 border-2 border-dashed border-border bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black font-black h-10 uppercase text-[10px] tracking-widest transition-transform active:scale-95 inline-flex items-center justify-center cursor-pointer">
-                    <Upload className="h-4 w-4" />
-                    Import
-                  </DropzoneTrigger>
-                  <Button onClick={handleCreateNew} className="gap-2 rounded-none px-6 bg-black hover:opacity-90 dark:bg-white text-white dark:text-black font-black h-10 uppercase text-[10px] tracking-widest transition-transform active:scale-95">
-                    <Plus className="h-4 w-4" />
-                    Create
-                  </Button>
-                </div>
-                {uploadDropzone.fileStatuses.length > 0 && (
-                  <DropzoneFileList className="absolute top-full right-0 mt-2 w-full sm:w-96 bg-popover border border-border shadow-lg z-50 p-2 rounded-none max-h-80 overflow-auto">
-                    {uploadDropzone.fileStatuses.map((file) => (
-                      <DropzoneFileListItem key={file.id} file={file} className="rounded-none">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-bold">{file.fileName}</p>
-                            <DropzoneMessage />
-                          </div>
-                          {file.status === "success" && <span className="text-[10px] text-green-600 font-black uppercase shrink-0">Done</span>}
-                          {file.status === "error" && <span className="text-[10px] text-destructive font-black uppercase shrink-0">Failed</span>}
-                          <DropzoneRemoveFile variant="ghost" className="h-6 w-6 rounded-none shrink-0">
-                            <Trash2Icon className="h-3 w-3" />
-                          </DropzoneRemoveFile>
-                        </div>
-                      </DropzoneFileListItem>
-                    ))}
-                  </DropzoneFileList>
-                )}
-              </Dropzone>
+              {!isGuestUser && (
+                <>
+                  <Dropzone {...uploadDropzone} className="relative">
+                    <div className="flex items-center gap-3">
+                      <DropzoneTrigger className="gap-2 rounded-none px-5 border-2 border-dashed border-border bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black font-black h-10 uppercase text-[10px] tracking-widest transition-transform active:scale-95 inline-flex items-center justify-center cursor-pointer">
+                        <Upload className="h-4 w-4" />
+                        Import
+                      </DropzoneTrigger>
+                      <Button onClick={handleCreateNew} className="gap-2 rounded-none px-6 bg-black hover:opacity-90 dark:bg-white text-white dark:text-black font-black h-10 uppercase text-[10px] tracking-widest transition-transform active:scale-95">
+                        <Plus className="h-4 w-4" />
+                        Create
+                      </Button>
+                    </div>
+                    {uploadDropzone.fileStatuses.length > 0 && (
+                      <DropzoneFileList className="absolute top-full right-0 mt-2 w-full sm:w-96 bg-popover border border-border shadow-lg z-50 p-2 rounded-none max-h-80 overflow-auto">
+                        {uploadDropzone.fileStatuses.map((file) => (
+                          <DropzoneFileListItem key={file.id} file={file} className="rounded-none">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs font-bold">{file.fileName}</p>
+                                <DropzoneMessage />
+                              </div>
+                              {file.status === "success" && <span className="text-[10px] text-green-600 font-black uppercase shrink-0">Done</span>}
+                              {file.status === "error" && <span className="text-[10px] text-destructive font-black uppercase shrink-0">Failed</span>}
+                              <DropzoneRemoveFile variant="ghost" className="h-6 w-6 rounded-none shrink-0">
+                                <Trash2Icon className="h-3 w-3" />
+                              </DropzoneRemoveFile>
+                            </div>
+                          </DropzoneFileListItem>
+                        ))}
+                      </DropzoneFileList>
+                    )}
+                  </Dropzone>
+                </>
+              )}
             </div>
           </div>
 
           {filteredDocs.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {filteredDocs.map(doc => (
-                <DocumentCard 
-                  key={doc.id} 
-                  doc={doc} 
-                  onDelete={handleDelete} 
-                  folders={folders as Folder[]} 
-                  onMove={handleMoveToFolder}
+                <DocumentCard
+                  key={doc.id}
+                  doc={doc}
+                  isGuest={isGuestUser}
+                  onDelete={isGuestUser ? undefined : handleDelete}
+                  folders={!isGuestUser ? (folders as Folder[]) : []}
+                  onMove={isGuestUser ? undefined : handleMoveToFolder}
                 />
               ))}
             </div>

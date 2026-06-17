@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/Header";
 import { AIEnhanceDialog } from "@/components/AIEnhanceDialog";
-import { Save, Sparkles, Columns2, ChevronLeft, PanelRight, FileText, AlignLeft, AlignRight, ChevronDown, Wand2, SpellCheck, Shrink, Expand, Languages, Speech } from "lucide-react";
+import { Save, Sparkles, Columns2, ChevronLeft, PanelRight, FileText, AlignLeft, AlignRight, ChevronDown, Wand2, SpellCheck, Shrink, Expand, Languages, Speech, LogIn } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,9 +62,10 @@ function isDarkTheme(): boolean {
 
 interface EditorViewProps {
   initialDoc: Document;
+  isGuest?: boolean;
 }
 
-export function EditorView({ initialDoc }: EditorViewProps) {
+export function EditorView({ initialDoc, isGuest }: EditorViewProps) {
   const [currentDoc, setCurrentDoc] = useState<Document>(initialDoc);
   const [html, setHtml]             = useState("");
   const [isSaving, setIsSaving]     = useState(false);
@@ -126,7 +127,7 @@ export function EditorView({ initialDoc }: EditorViewProps) {
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = useCallback(() => {
-    if (!firestore || !user) return;
+    if (!firestore || !user || isGuest) return;
     setIsSaving(true);
     const docRef   = doc(firestore, 'users', user.uid, 'documents', currentDoc.id);
     const updateData = {
@@ -148,6 +149,7 @@ export function EditorView({ initialDoc }: EditorViewProps) {
 
   // ── Auto-save (debounced 2 s) ────────────────────────────────────────────
   useEffect(() => {
+    if (isGuest) return;
     const timer = setTimeout(() => {
       const hasChanged =
         currentDoc.content !== initialDoc.content ||
@@ -210,11 +212,15 @@ export function EditorView({ initialDoc }: EditorViewProps) {
   };
 
   const handleApplyEnhancement = () => {
-    if (!aiEnhancedContent || !firestore || !user) return;
+    if (!aiEnhancedContent) return;
 
     const isTranslation = aiEnhanceType === "translate-arabic" || aiEnhanceType === "translate-english";
 
     if (isTranslation) {
+      if (!firestore || !user) {
+        toast({ variant: "destructive", title: "Sign in required", description: "Sign in to create a translated document." });
+        return;
+      }
       const suffix = aiEnhanceType === "translate-arabic" ? " (Arabic)" : " (English)";
       const docData = {
         title: currentDoc.title + suffix,
@@ -233,12 +239,15 @@ export function EditorView({ initialDoc }: EditorViewProps) {
       router.push(`/editor/${docRef.id}`);
     } else {
       setCurrentDoc(prev => ({ ...prev, content: aiEnhancedContent! }));
-      toast({ title: "Applied", description: "Enhanced content has been applied." });
+      if (!isGuest) {
+        toast({ title: "Applied", description: "Enhanced content has been applied." });
+      }
     }
     setAiDialogOpen(false);
   };
 
   const handleEditorChange = (value: string | undefined) => {
+    if (isGuest) return;
     setCurrentDoc(prev => ({ ...prev, content: value || "" }));
   };
 
@@ -275,8 +284,9 @@ export function EditorView({ initialDoc }: EditorViewProps) {
             <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
             <Input
               value={currentDoc.title}
-              onChange={(e) => setCurrentDoc(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Untitled"
+              onChange={(e) => isGuest ? null : setCurrentDoc(prev => ({ ...prev, title: e.target.value }))}
+              readOnly={isGuest}
+              placeholder={isGuest ? "Demo Document" : "Untitled"}
               className={cn(
                 "h-8 border-none bg-transparent focus-visible:ring-0 p-0 text-sm font-bold tracking-tight w-full truncate",
                 isRTL(currentDoc.title) ? "text-right" : "text-left"
@@ -432,15 +442,26 @@ export function EditorView({ initialDoc }: EditorViewProps) {
             </Button>
           </div>
 
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="h-8 gap-2 bg-primary text-primary-foreground font-bold px-3 sm:px-4 text-[10px] sm:text-xs"
-          >
-            <Save className={cn("h-3.5 w-3.5", isSaving && "animate-spin")} />
-            <span className="hidden sm:inline">Deploy</span>
-          </Button>
+          {isGuest ? (
+            <Button
+              size="sm"
+              disabled
+              className="h-8 gap-2 bg-muted text-muted-foreground font-bold px-3 sm:px-4 text-[10px] sm:text-xs cursor-not-allowed"
+            >
+              <LogIn className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Sign in to Save</span>
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="h-8 gap-2 bg-primary text-primary-foreground font-bold px-3 sm:px-4 text-[10px] sm:text-xs"
+            >
+              <Save className={cn("h-3.5 w-3.5", isSaving && "animate-spin")} />
+              <span className="hidden sm:inline">Deploy</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -465,6 +486,7 @@ export function EditorView({ initialDoc }: EditorViewProps) {
               <textarea
                 value={currentDoc.content}
                 onChange={(e) => handleEditorChange(e.target.value)}
+                readOnly={isGuest}
                 className="w-full h-full resize-none bg-transparent p-4 sm:p-8 font-mono text-sm leading-relaxed outline-none"
                 style={{ fontFamily: "'Source Code Pro', monospace" }}
                 dir={resolvedDir}
@@ -492,6 +514,8 @@ export function EditorView({ initialDoc }: EditorViewProps) {
                   quickSuggestions:           false,
                   folding:                    false,
                   automaticLayout:            true,
+                  readOnly:                   isGuest,
+                  domReadOnly:                isGuest,
                 }}
               />
             )}

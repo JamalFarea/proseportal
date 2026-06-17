@@ -20,12 +20,13 @@ import {
 
 interface DocumentCardProps {
   doc: Document;
-  onDelete: (id: string) => void;
-  folders: Folder[];
-  onMove: (docId: string, folderId: string) => void;
+  onDelete?: (id: string) => void;
+  folders?: Folder[];
+  onMove?: (docId: string, folderId: string) => void;
+  isGuest?: boolean;
 }
 
-export function DocumentCard({ doc, onDelete, folders, onMove }: DocumentCardProps) {
+export function DocumentCard({ doc, onDelete, folders, onMove, isGuest }: DocumentCardProps) {
   const rtl = isRTL(doc.title);
   
   return (
@@ -35,35 +36,41 @@ export function DocumentCard({ doc, onDelete, folders, onMove }: DocumentCardPro
           <div className="bg-muted p-2">
             <FileText className="h-4 w-4 text-black dark:text-white" />
           </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted">
-                  <FolderInput className="h-4 w-4" />
+          {!isGuest && (
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {folders && onMove && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted">
+                      <FolderInput className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel className="text-xs uppercase tracking-widest font-bold">Move to Folder</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onMove(doc.id, "")} className="text-xs font-medium">
+                      None (Root)
+                    </DropdownMenuItem>
+                    {folders.map(f => (
+                      <DropdownMenuItem key={f.id} onClick={() => onMove(doc.id, f.id)} className="text-xs font-medium">
+                        {f.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              {onDelete && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onDelete(doc.id)}
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4" />
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel className="text-xs uppercase tracking-widest font-bold">Move to Folder</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onMove(doc.id, "")} className="text-xs font-medium">
-                  None (Root)
-                </DropdownMenuItem>
-                {folders.map(f => (
-                  <DropdownMenuItem key={f.id} onClick={() => onMove(doc.id, f.id)} className="text-xs font-medium">
-                    {f.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => onDelete(doc.id)}
-              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+              )}
+            </div>
+          )}
         </div>
         <CardTitle 
           className={cn("text-base mt-4 font-black tracking-tight uppercase line-clamp-1", rtl ? "text-right" : "text-left")}
@@ -98,7 +105,7 @@ export function DocumentCard({ doc, onDelete, folders, onMove }: DocumentCardPro
         </div>
         <Button asChild size="sm" variant="outline" className="h-8 rounded-none border-border hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all px-4 font-bold uppercase text-[10px] tracking-widest">
           <Link href={`/editor/${doc.id}`}>
-            Edit
+            {isGuest ? "View" : "Edit"}
           </Link>
         </Button>
       </CardFooter>

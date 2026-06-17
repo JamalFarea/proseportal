@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { ThemeToggle } from "./ThemeToggle";
-import { Layout, LogOut, User } from "lucide-react";
+import { Layout, LogOut, User, Eye } from "lucide-react";
 import { useUser, useAuth } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
@@ -70,9 +70,15 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild size="sm" className="font-semibold h-9 rounded-xl px-5">
-              <Link href="/login">Login</Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400 border border-amber-500/30 bg-amber-500/10 px-2.5 py-1">
+                <Eye className="h-3 w-3" />
+                Guest
+              </div>
+              <Button asChild size="sm" className="font-semibold h-9 rounded-xl px-5">
+                <Link href="/login">Sign In</Link>
+              </Button>
+            </div>
           )}
         </div>
       </div>

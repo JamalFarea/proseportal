@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useUser, useFirestore, useDoc } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { Document } from "@/lib/types";
+import { GuestDocument, getGuestDocument, isGuestId } from "@/lib/guest-data";
 import { EditorView } from "@/components/EditorView";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -15,20 +16,23 @@ export default function EditorPage() {
   const firestore = useFirestore();
   const router = useRouter();
 
+  const isGuestDoc = typeof id === "string" && isGuestId(id);
+  const [guestDoc, setGuestDoc] = useState<(Document & { id: string }) | null>(null);
+
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login");
+    if (isGuestDoc && typeof id === "string") {
+      setGuestDoc(getGuestDocument(id) || null);
     }
-  }, [user, authLoading, router]);
+  }, [id, isGuestDoc]);
 
   const docRef = useMemo(() => {
-    if (!firestore || !user || typeof id !== 'string') return null;
+    if (!firestore || !user || typeof id !== 'string' || isGuestDoc) return null;
     return doc(firestore, 'users', user.uid, 'documents', id);
-  }, [firestore, user, id]);
+  }, [firestore, user, id, isGuestDoc]);
 
   const { data: document, loading: docLoading, error } = useDoc(docRef);
 
-  if (authLoading || docLoading) {
+  if (authLoading || docLoading || (isGuestDoc && !guestDoc)) {
     return (
       <div className="h-screen w-screen flex flex-col bg-background p-4 gap-4">
         <Skeleton className="h-14 w-full rounded-xl" />
@@ -40,7 +44,9 @@ export default function EditorPage() {
     );
   }
 
-  if (error || !document) {
+  const resolvedDoc = isGuestDoc ? guestDoc : (document ? { ...document, id: id as string } as Document : null);
+
+  if (!resolvedDoc) {
     return (
       <div className="h-screen flex items-center justify-center flex-col gap-4">
         <p className="text-muted-foreground font-medium">Document not found or access denied.</p>
@@ -49,5 +55,5 @@ export default function EditorPage() {
     );
   }
 
-  return <EditorView initialDoc={{ ...document, id: id as string } as Document} />;
+  return <EditorView initialDoc={resolvedDoc} isGuest={isGuestDoc} />;
 }
