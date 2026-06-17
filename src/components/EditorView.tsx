@@ -69,6 +69,7 @@ export function EditorView({ initialDoc }: EditorViewProps) {
   const [dark, setDark]             = useState(false);
   // Manual text-direction: 'ltr' | 'rtl' | 'auto' (auto uses content detection)
   const [textDir, setTextDir]       = useState<"ltr" | "rtl" | "auto">("ltr");
+  const resolvedDir = textDir === "auto" ? (isRTL(currentDoc.content) ? "rtl" : "ltr") : textDir;
 
   const { toast }     = useToast();
   const firestore     = useFirestore();
@@ -163,8 +164,24 @@ export function EditorView({ initialDoc }: EditorViewProps) {
     setCurrentDoc(prev => ({ ...prev, content: value || "" }));
   };
 
-  // Resolve direction: manual override takes priority; 'auto' falls back to content detection
-  const resolvedDir = textDir === "auto" ? (isRTL(currentDoc.content) ? "rtl" : "ltr") : textDir;
+  const handleEditorBeforeMount = (monaco: any) => {
+    monaco.editor.defineTheme('transparent-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [],
+      colors: {
+        'editor.background': '#00000000',
+      }
+    });
+    monaco.editor.defineTheme('transparent-light', {
+      base: 'vs',
+      inherit: true,
+      rules: [],
+      colors: {
+        'editor.background': '#00000000',
+      }
+    });
+  };
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
@@ -289,13 +306,14 @@ export function EditorView({ initialDoc }: EditorViewProps) {
 
         {/* Monaco editor */}
         {(viewMode === "both" || viewMode === "editor") && (
-          <div className="flex-1 h-full overflow-hidden" style={{ backgroundColor: dark ? '#1e1e1e' : '#fffffe' }}>
+          <div className="flex-1 h-full overflow-hidden bg-card">
             <Editor
               height="100%"
               defaultLanguage="markdown"
               value={currentDoc.content}
               onChange={handleEditorChange}
-              theme={dark ? "vs-dark" : "vs"}
+              beforeMount={handleEditorBeforeMount}
+              theme={dark ? "transparent-dark" : "transparent-light"}
               options={{
                 minimap:                    { enabled: false },
                 fontSize:                   14,
@@ -320,12 +338,8 @@ export function EditorView({ initialDoc }: EditorViewProps) {
         {(viewMode === "both" || viewMode === "preview") && (
           <div
             className={cn(
-              "flex-1 overflow-y-auto border-l",
-              // Match the reference's preview-wrapper padding
+              "flex-1 overflow-y-auto border-l bg-background",
             )}
-            style={{
-              backgroundColor: dark ? '#212830' : '#ffffff',
-            }}
             dir={resolvedDir}
           >
             <div
