@@ -35,11 +35,12 @@ export function deleteDocument(id: string) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
 }
 
-export function createNewDocument(): Document {
+export function createNewDocument(): Omit<Document, 'userId'> & { userId?: string } {
   return {
     id: Math.random().toString(36).substr(2, 9),
     title: 'Untitled Document',
     content: '',
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
+    userId: '',
   };
 }

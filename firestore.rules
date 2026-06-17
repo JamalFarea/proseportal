@@ -1,19 +1,53 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper to check if the user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper to check if the user is accessing their own data
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
 
-    // Rules for all user data (folders, documents, profile settings, etc.)
-    match /users/{userId}/{allPaths=**} {
+    function isWorkspaceMember(ownerId) {
+      return exists(/databases/$(database)/documents/users/$(ownerId)/workspace-members/$(request.auth.uid));
+    }
+
+    function isWorkspaceEditor(ownerId) {
+      return get(/databases/$(database)/documents/users/$(ownerId)/workspace-members/$(request.auth.uid)).data.role == 'editor';
+    }
+
+    match /users/{userId} {
       allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+
+    match /users/{userId}/documents/{docId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isWorkspaceMember(userId));
+      allow create: if isAuthenticated() && (isOwner(userId) || isWorkspaceEditor(userId));
+      allow update: if isAuthenticated() && (isOwner(userId) || isWorkspaceEditor(userId));
+      allow delete: if isAuthenticated() && isOwner(userId);
+    }
+
+    match /users/{userId}/folders/{folderId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isWorkspaceMember(userId));
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+
+    match /users/{userId}/workspace-members/{memberId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || request.auth.uid == memberId);
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+
+    match /users/{userId}/shared-workspaces/{ownerId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+
+    match /invites/{inviteId} {
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.ownerUid || request.auth.token.email == resource.data.invitedEmail);
+      allow update: if isAuthenticated() && request.auth.token.email == resource.data.invitedEmail;
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.ownerUid;
     }
   }
 }

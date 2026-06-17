@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase';
 import { BrandingProvider } from '@/components/BrandingProvider';
+import { InviteNotifications } from '@/components/InviteNotifications';
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://proseportal.vercel.app';
 
@@ -94,6 +95,7 @@ export default function RootLayout({
           <BrandingProvider>
             {children}
             <Toaster />
+            <InviteNotifications />
           </BrandingProvider>
         </FirebaseClientProvider>
       </body>

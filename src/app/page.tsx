@@ -1,13 +1,15 @@
 
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useUser, useCollection } from "@/firebase";
-import { collection, query, orderBy, deleteDoc, doc, setDoc, updateDoc } from "firebase/firestore";
+import { collection, query, orderBy, deleteDoc, doc, setDoc, updateDoc, getDocs } from "firebase/firestore";
 import { Document, Folder } from "@/lib/types";
 import { guestDocuments, isGuest } from "@/lib/guest-data";
 import { Header } from "@/components/Header";
 import { DocumentCard } from "@/components/DocumentCard";
+import { ShareDialog } from "@/components/ShareDialog";
+import { InviteNotifications } from "@/components/InviteNotifications";
 import { Button } from "@/components/ui/button";
 import {
   Dropzone,
@@ -18,7 +20,7 @@ import {
   DropzoneTrigger,
   useDropzone,
 } from "@/components/ui/dropzone";
-import { Plus, Search, FileX, Folder as FolderIcon, Hash, Settings2, ShieldCheck, Cloud, Upload, Trash2Icon, Sidebar, X, Eye, LogIn } from "lucide-react";
+import { Plus, Search, FileX, Folder as FolderIcon, Hash, Settings2, ShieldCheck, Cloud, Upload, Trash2Icon, Sidebar, X, Eye, LogIn, Users, Share2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +29,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import type { SharedWorkspace } from "@/lib/workspace-sharing";
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useUser();
@@ -38,6 +41,10 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+
+  const [sharedWorkspaces, setSharedWorkspaces] = useState<{ ownerUid: string; data: SharedWorkspace }[]>([]);
+  const [sharedDocs, setSharedDocs] = useState<(Document & { id: string; ownerUid: string; ownerName: string })[]>([]);
 
   const docsQuery = useMemo(() => {
     if (!firestore || !user) return null;
@@ -51,6 +58,38 @@ export default function Dashboard() {
 
   const { data: documents = [], loading: docsLoading } = useCollection(docsQuery);
   const { data: folders = [], loading: foldersLoading } = useCollection(foldersQuery);
+
+  useEffect(() => {
+    if (!firestore || !user) return;
+    const loadShared = async () => {
+      try {
+        const wsSnap = await getDocs(collection(firestore, "users", user.uid, "shared-workspaces"));
+        const workspaces = wsSnap.docs.map(d => ({
+          ownerUid: d.id,
+          data: d.data() as SharedWorkspace,
+        }));
+        setSharedWorkspaces(workspaces);
+
+        const allShared: (Document & { id: string; ownerUid: string; ownerName: string })[] = [];
+        for (const ws of workspaces) {
+          const docsSnap = await getDocs(query(
+            collection(firestore, "users", ws.ownerUid, "documents"),
+            orderBy("updatedAt", "desc")
+          ));
+          docsSnap.docs.forEach(d => {
+            allShared.push({
+              ...d.data() as Document,
+              id: d.id,
+              ownerUid: ws.ownerUid,
+              ownerName: ws.data.ownerName,
+            });
+          });
+        }
+        setSharedDocs(allShared);
+      } catch {}
+    };
+    loadShared();
+  }, [firestore, user]);
 
   const handleCreateNew = () => {
     if (!firestore || !user) return;
@@ -168,6 +207,13 @@ export default function Dashboard() {
     return matchesSearch && matchesFolder;
   });
 
+  const filteredSharedDocs = sharedDocs.filter(doc => {
+    if (selectedFolderId) return false;
+    return doc.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           doc.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           doc.summary?.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
   if (authLoading || (!isGuestUser && (docsLoading || foldersLoading))) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -189,6 +235,8 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen flex flex-col bg-background selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black">
       <Header />
+      <InviteNotifications />
+      <ShareDialog open={shareDialogOpen} onOpenChange={setShareDialogOpen} />
       <main className="flex-1 container mx-auto px-4 py-8 md:py-12 flex flex-col md:flex-row gap-8 md:gap-12">
         {/* Mobile sidebar toggle */}
         <button
@@ -241,6 +289,15 @@ export default function Dashboard() {
               <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
                 Your workspace is connected to Firestore production.
               </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShareDialogOpen(true)}
+                className="w-full rounded-none h-8 text-[10px] font-black uppercase tracking-widest mt-2 gap-2"
+              >
+                <Share2 className="h-3 w-3" />
+                Share Workspace
+              </Button>
             </div>
           )}
 
@@ -305,7 +362,7 @@ export default function Dashboard() {
                 ) : (
                   <ShieldCheck className="h-3 w-3 text-green-500" />
                 )}
-                <span>{filteredDocs.length} Documents</span>
+                <span>{filteredDocs.length + filteredSharedDocs.length} Documents</span>
                 <span>/</span>
                 <span className={isGuestUser ? "text-amber-600 dark:text-amber-400" : "text-black dark:text-white"}>
                   {isGuestUser ? "Guest Session" : "Authenticated Session"}
@@ -324,7 +381,8 @@ export default function Dashboard() {
               </div>
               {!isGuestUser && (
                 <>
-                  <Dropzone {...uploadDropzone} className="relative">
+                  <div className="relative">
+                  <Dropzone {...uploadDropzone}>
                     <div className="flex items-center gap-3">
                       <DropzoneTrigger className="gap-2 rounded-none px-5 border-2 border-dashed border-border bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black font-black h-10 uppercase text-[10px] tracking-widest transition-transform active:scale-95 inline-flex items-center justify-center cursor-pointer">
                         <Upload className="h-4 w-4" />
@@ -355,23 +413,58 @@ export default function Dashboard() {
                       </DropzoneFileList>
                     )}
                   </Dropzone>
+                  </div>
                 </>
               )}
             </div>
           </div>
 
-          {filteredDocs.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {filteredDocs.map(doc => (
-                <DocumentCard
-                  key={doc.id}
-                  doc={doc}
-                  isGuest={isGuestUser}
-                  onDelete={isGuestUser ? undefined : handleDelete}
-                  folders={!isGuestUser ? (folders as Folder[]) : []}
-                  onMove={isGuestUser ? undefined : handleMoveToFolder}
-                />
-              ))}
+          {filteredDocs.length > 0 || filteredSharedDocs.length > 0 ? (
+            <div className="space-y-10">
+              {filteredDocs.length > 0 && (
+                <div>
+                  {sharedWorkspaces.length > 0 && (
+                    <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                      <ShieldCheck className="h-3 w-3" />
+                      My Documents
+                    </h2>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    {filteredDocs.map(doc => (
+                      <DocumentCard
+                        key={doc.id}
+                        doc={doc}
+                        isGuest={isGuestUser}
+                        onDelete={isGuestUser ? undefined : handleDelete}
+                        folders={!isGuestUser ? (folders as Folder[]) : []}
+                        onMove={isGuestUser ? undefined : handleMoveToFolder}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {filteredSharedDocs.length > 0 && (
+                <div>
+                  <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                    <Users className="h-3 w-3" />
+                    Shared With Me
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    {filteredSharedDocs.map(doc => (
+                      <DocumentCard
+                        key={`shared-${doc.ownerUid}-${doc.id}`}
+                        doc={doc}
+                        isGuest={false}
+                        onDelete={undefined}
+                        folders={[]}
+                        onMove={undefined}
+                        sharedFrom={doc.ownerName}
+                        sharedOwnerUid={doc.ownerUid}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 sm:py-32 border border-border border-dashed bg-muted/5">

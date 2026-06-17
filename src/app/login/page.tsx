@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react";
-import { useAuth, useUser } from "@/firebase";
+import { useAuth, useUser, useFirestore } from "@/firebase";
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function LoginPage() {
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, loading: authLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -22,6 +24,20 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+
+  const createUserProfile = async (uid: string, email: string, displayName?: string | null, photoURL?: string | null) => {
+    if (!firestore) return;
+    const profileRef = doc(firestore, "users", uid);
+    const snap = await getDoc(profileRef);
+    if (!snap.exists()) {
+      await setDoc(profileRef, {
+        email: email.toLowerCase().trim(),
+        displayName: displayName || email.split("@")[0],
+        photoURL: photoURL || "",
+        createdAt: Date.now(),
+      });
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -37,7 +53,8 @@ export default function LoginPage() {
     provider.setCustomParameters({ prompt: 'select_account' });
     
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      await createUserProfile(result.user.uid, result.user.email || "", result.user.displayName, result.user.photoURL);
     } catch (error: any) {
       setAuthError(error.code);
       toast({ 
@@ -57,9 +74,13 @@ export default function LoginPage() {
     setAuthError(null);
     try {
       if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const result = await createUserWithEmailAndPassword(auth, email, password);
+        await createUserProfile(result.user.uid, email);
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        if (result.user.email) {
+          await createUserProfile(result.user.uid, result.user.email, result.user.displayName, result.user.photoURL);
+        }
       }
     } catch (error: any) {
       setAuthError(error.code);

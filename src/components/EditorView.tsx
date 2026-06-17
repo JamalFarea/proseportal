@@ -63,9 +63,10 @@ function isDarkTheme(): boolean {
 interface EditorViewProps {
   initialDoc: Document;
   isGuest?: boolean;
+  isViewer?: boolean;
 }
 
-export function EditorView({ initialDoc, isGuest }: EditorViewProps) {
+export function EditorView({ initialDoc, isGuest, isViewer }: EditorViewProps) {
   const [currentDoc, setCurrentDoc] = useState<Document>(initialDoc);
   const [html, setHtml]             = useState("");
   const [isSaving, setIsSaving]     = useState(false);
@@ -99,6 +100,8 @@ export function EditorView({ initialDoc, isGuest }: EditorViewProps) {
   const { user }      = useUser();
   const previewRef    = useRef<HTMLDivElement>(null);
 
+  const isReadOnly = isGuest || isViewer;
+
   // ── Detect and sync theme with the GitHub MD stylesheet ──────────────────
   useEffect(() => {
     const currentDark = isDarkTheme();
@@ -127,7 +130,7 @@ export function EditorView({ initialDoc, isGuest }: EditorViewProps) {
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = useCallback(() => {
-    if (!firestore || !user || isGuest) return;
+    if (!firestore || !user || isReadOnly) return;
     setIsSaving(true);
     const docRef   = doc(firestore, 'users', user.uid, 'documents', currentDoc.id);
     const updateData = {
@@ -149,7 +152,7 @@ export function EditorView({ initialDoc, isGuest }: EditorViewProps) {
 
   // ── Auto-save (debounced 2 s) ────────────────────────────────────────────
   useEffect(() => {
-    if (isGuest) return;
+    if (isReadOnly) return;
     const timer = setTimeout(() => {
       const hasChanged =
         currentDoc.content !== initialDoc.content ||
@@ -239,7 +242,7 @@ export function EditorView({ initialDoc, isGuest }: EditorViewProps) {
       router.push(`/editor/${docRef.id}`);
     } else {
       setCurrentDoc(prev => ({ ...prev, content: aiEnhancedContent! }));
-      if (!isGuest) {
+      if (!isReadOnly) {
         toast({ title: "Applied", description: "Enhanced content has been applied." });
       }
     }
@@ -247,7 +250,7 @@ export function EditorView({ initialDoc, isGuest }: EditorViewProps) {
   };
 
   const handleEditorChange = (value: string | undefined) => {
-    if (isGuest) return;
+    if (isReadOnly) return;
     setCurrentDoc(prev => ({ ...prev, content: value || "" }));
   };
 
@@ -284,8 +287,8 @@ export function EditorView({ initialDoc, isGuest }: EditorViewProps) {
             <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
             <Input
               value={currentDoc.title}
-              onChange={(e) => isGuest ? null : setCurrentDoc(prev => ({ ...prev, title: e.target.value }))}
-              readOnly={isGuest}
+              onChange={(e) => isReadOnly ? null : setCurrentDoc(prev => ({ ...prev, title: e.target.value }))}
+              readOnly={isReadOnly}
               placeholder={isGuest ? "Demo Document" : "Untitled"}
               className={cn(
                 "h-8 border-none bg-transparent focus-visible:ring-0 p-0 text-sm font-bold tracking-tight w-full truncate",
@@ -442,14 +445,14 @@ export function EditorView({ initialDoc, isGuest }: EditorViewProps) {
             </Button>
           </div>
 
-          {isGuest ? (
+          {isReadOnly ? (
             <Button
               size="sm"
               disabled
               className="h-8 gap-2 bg-muted text-muted-foreground font-bold px-3 sm:px-4 text-[10px] sm:text-xs cursor-not-allowed"
             >
               <LogIn className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Sign in to Save</span>
+              <span className="hidden sm:inline">{isGuest ? "Sign in to Save" : "View Only"}</span>
             </Button>
           ) : (
             <Button
@@ -486,7 +489,7 @@ export function EditorView({ initialDoc, isGuest }: EditorViewProps) {
               <textarea
                 value={currentDoc.content}
                 onChange={(e) => handleEditorChange(e.target.value)}
-                readOnly={isGuest}
+                readOnly={isReadOnly}
                 className="w-full h-full resize-none bg-transparent p-4 sm:p-8 font-mono text-sm leading-relaxed outline-none"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 dir={resolvedDir}
@@ -514,8 +517,8 @@ export function EditorView({ initialDoc, isGuest }: EditorViewProps) {
                   quickSuggestions:           false,
                   folding:                    false,
                   automaticLayout:            true,
-                  readOnly:                   isGuest,
-                  domReadOnly:                isGuest,
+                  readOnly:                   isReadOnly,
+                  domReadOnly:                isReadOnly,
                 }}
               />
             )}

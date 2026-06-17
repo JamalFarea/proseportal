@@ -4,7 +4,7 @@
 import { Document, Folder } from "@/lib/types";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit2, Trash2, Calendar, FileText, FolderInput, AlignLeft } from "lucide-react";
+import { Edit2, Trash2, Calendar, FileText, FolderInput, AlignLeft, Users } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -24,11 +24,16 @@ interface DocumentCardProps {
   folders?: Folder[];
   onMove?: (docId: string, folderId: string) => void;
   isGuest?: boolean;
+  sharedFrom?: string;
+  sharedOwnerUid?: string;
 }
 
-export function DocumentCard({ doc, onDelete, folders, onMove, isGuest }: DocumentCardProps) {
+export function DocumentCard({ doc, onDelete, folders, onMove, isGuest, sharedFrom, sharedOwnerUid }: DocumentCardProps) {
   const rtl = isRTL(doc.title);
-  
+  const editUrl = sharedOwnerUid
+    ? `/editor/${doc.id}?owner=${sharedOwnerUid}`
+    : `/editor/${doc.id}`;
+
   return (
     <Card className="group transition-all hover:border-black rounded-none shadow-none border-border flex flex-col h-full bg-white dark:bg-card">
       <CardHeader className="pb-3 pt-5 px-5">
@@ -36,7 +41,7 @@ export function DocumentCard({ doc, onDelete, folders, onMove, isGuest }: Docume
           <div className="bg-muted p-2">
             <FileText className="h-4 w-4 text-black dark:text-white" />
           </div>
-          {!isGuest && (
+          {!isGuest && !sharedOwnerUid && (
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {folders && onMove && (
                 <DropdownMenu>
@@ -72,8 +77,14 @@ export function DocumentCard({ doc, onDelete, folders, onMove, isGuest }: Docume
             </div>
           )}
         </div>
+        {sharedFrom && (
+          <div className="flex items-center gap-1.5 mt-2 text-[8px] font-black uppercase tracking-widest text-primary">
+            <Users className="h-2.5 w-2.5" />
+            {sharedFrom}
+          </div>
+        )}
         <CardTitle 
-          className={cn("text-base mt-4 font-black tracking-tight uppercase line-clamp-1", rtl ? "text-right" : "text-left")}
+          className={cn("text-base mt-3 font-black tracking-tight uppercase line-clamp-1", rtl ? "text-right" : "text-left")}
           dir={rtl ? "rtl" : "ltr"}
         >
           {doc.title || "Untitled"}
@@ -104,8 +115,8 @@ export function DocumentCard({ doc, onDelete, folders, onMove, isGuest }: Docume
           {formatDistanceToNow(doc.updatedAt, { addSuffix: true })}
         </div>
         <Button asChild size="sm" variant="outline" className="h-8 rounded-none border-border hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all px-4 font-bold uppercase text-[10px] tracking-widest">
-          <Link href={`/editor/${doc.id}`}>
-            {isGuest ? "View" : "Edit"}
+          <Link href={editUrl}>
+            {isGuest ? "View" : sharedOwnerUid ? "Open" : "Edit"}
           </Link>
         </Button>
       </CardFooter>
