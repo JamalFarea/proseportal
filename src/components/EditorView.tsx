@@ -488,7 +488,7 @@ export function EditorView({ initialDoc, isGuest }: EditorViewProps) {
                 onChange={(e) => handleEditorChange(e.target.value)}
                 readOnly={isGuest}
                 className="w-full h-full resize-none bg-transparent p-4 sm:p-8 font-mono text-sm leading-relaxed outline-none"
-                style={{ fontFamily: "'Source Code Pro', monospace" }}
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 dir={resolvedDir}
               />
             ) : (
@@ -502,7 +502,7 @@ export function EditorView({ initialDoc, isGuest }: EditorViewProps) {
                 options={{
                   minimap:                    { enabled: false },
                   fontSize:                   14,
-                  fontFamily:                 "Source Code Pro, monospace",
+                  fontFamily:                 "JetBrains Mono, monospace",
                   wordWrap:                   "on",
                   padding:                    { top: 32, bottom: 32 },
                   lineNumbers:                "on",
