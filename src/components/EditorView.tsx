@@ -7,11 +7,14 @@ import { useFirestore, useUser } from "@/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { parseMarkdown, isRTL } from "@/lib/markdown";
 import { aiContentSuggestions } from "@/ai/flows/ai-content-suggestions";
+import { aiEnhanceContent } from "@/ai/flows/ai-enhance-content";
+import { EnhanceType } from "@/ai/flows/ai-enhance-types";
 import Editor from "@monaco-editor/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/Header";
-import { Save, Sparkles, Columns2, ChevronLeft, PanelRight, FileText, AlignLeft, AlignRight, ChevronDown } from "lucide-react";
+import { AIEnhanceDialog } from "@/components/AIEnhanceDialog";
+import { Save, Sparkles, Columns2, ChevronLeft, PanelRight, FileText, AlignLeft, AlignRight, ChevronDown, Wand2, SpellCheck, Shrink, Expand, Languages, Speech } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,6 +75,13 @@ export function EditorView({ initialDoc }: EditorViewProps) {
   const resolvedDir = textDir === "auto" ? (isRTL(currentDoc.content) ? "rtl" : "ltr") : textDir;
 
   const [isMobile, setIsMobile] = useState(false);
+
+  // ── AI Enhancement Dialog state ──
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiEnhanceType, setAiEnhanceType] = useState<string>("improve-writing");
+  const [aiEnhancedContent, setAiEnhancedContent] = useState<string | null>(null);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [isGeneratingEnhance, setIsGeneratingEnhance] = useState(false);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -154,7 +164,7 @@ export function EditorView({ initialDoc }: EditorViewProps) {
     return () => clearTimeout(timer);
   }, [currentDoc, firestore, user, initialDoc]);
 
-  // ── AI suggestions ───────────────────────────────────────────────────────
+  // ── AI suggestions (title + summary) ──
   const handleAISuggestion = async () => {
     if (!currentDoc.content.trim()) return;
     setIsSuggesting(true);
@@ -167,6 +177,41 @@ export function EditorView({ initialDoc }: EditorViewProps) {
     } finally {
       setIsSuggesting(false);
     }
+  };
+
+  // ── AI Content Enhancement ──
+  const handleEnhanceContent = async (type: string) => {
+    if (!currentDoc.content.trim()) {
+      toast({ variant: "destructive", title: "No Content", description: "Write something first." });
+      return;
+    }
+    setAiEnhanceType(type);
+    setAiEnhancedContent(null);
+    setAiSummary(null);
+    setAiDialogOpen(true);
+    setIsGeneratingEnhance(true);
+
+    try {
+      const result = await aiEnhanceContent({
+        content: currentDoc.content,
+        enhanceType: type as EnhanceType,
+      });
+      setAiEnhancedContent(result.enhancedContent);
+      setAiSummary(result.summary);
+    } catch {
+      toast({ variant: "destructive", title: "Enhancement Failed", description: "Could not enhance content." });
+      setAiDialogOpen(false);
+    } finally {
+      setIsGeneratingEnhance(false);
+    }
+  };
+
+  const handleApplyEnhancement = () => {
+    if (aiEnhancedContent) {
+      setCurrentDoc(prev => ({ ...prev, content: aiEnhancedContent! }));
+      toast({ title: "Applied", description: "Enhanced content has been applied." });
+    }
+    setAiDialogOpen(false);
   };
 
   const handleEditorChange = (value: string | undefined) => {
@@ -218,29 +263,86 @@ export function EditorView({ initialDoc }: EditorViewProps) {
         </div>
 
         <div className="flex items-center gap-1 sm:gap-3 ml-2 sm:ml-4">
-          {/* AI Prompt — hidden on small mobile, accessible via dropdown */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAISuggestion}
-            disabled={isSuggesting}
-            className="hidden sm:flex h-8 gap-2 border-border/50 bg-secondary/30 hover:bg-secondary/50 text-xs font-semibold"
-          >
-            <Sparkles className={cn("h-3 w-3", isSuggesting && "animate-pulse")} />
-            <span className="hidden md:inline">AI Prompt</span>
-          </Button>
+          {/* AI Enhance — dropdown with options */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isSuggesting || isGeneratingEnhance}
+                className="hidden sm:flex h-8 gap-2 border-border/50 bg-secondary/30 hover:bg-secondary/50 text-xs font-semibold"
+              >
+                <Sparkles className={cn("h-3 w-3", (isSuggesting || isGeneratingEnhance) && "animate-pulse")} />
+                <span className="hidden md:inline">Enhance</span>
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-widest font-bold">Content Enhancements</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleEnhanceContent("improve-writing")} className="gap-2 text-xs font-medium">
+                <Wand2 className="h-3.5 w-3.5" /> Improve Writing
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEnhanceContent("fix-grammar")} className="gap-2 text-xs font-medium">
+                <SpellCheck className="h-3.5 w-3.5" /> Fix Grammar & Spelling
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEnhanceContent("make-shorter")} className="gap-2 text-xs font-medium">
+                <Shrink className="h-3.5 w-3.5" /> Make Shorter
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEnhanceContent("make-longer")} className="gap-2 text-xs font-medium">
+                <Expand className="h-3.5 w-3.5" /> Make Longer
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEnhanceContent("change-tone")} className="gap-2 text-xs font-medium">
+                <Speech className="h-3.5 w-3.5" /> Professional Tone
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-widest font-bold">Translate</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleEnhanceContent("translate-arabic")} className="gap-2 text-xs font-medium">
+                <Languages className="h-3.5 w-3.5" /> إلى العربية
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEnhanceContent("translate-english")} className="gap-2 text-xs font-medium">
+                <Languages className="h-3.5 w-3.5" /> To English
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-widest font-bold">Title & Summary</DropdownMenuLabel>
+              <DropdownMenuItem onClick={handleAISuggestion} disabled={isSuggesting} className="gap-2 text-xs font-medium">
+                <Sparkles className={cn("h-3.5 w-3.5", isSuggesting && "animate-pulse")} />
+                Generate Title & Summary
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          {/* More actions dropdown (mobile: AI Prompt + Text Direction) */}
+          {/* More actions dropdown (mobile) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="sm:hidden h-8 w-8 rounded-md">
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={handleAISuggestion} disabled={isSuggesting} className="gap-2 text-xs font-medium">
-                <Sparkles className={cn("h-3.5 w-3.5", isSuggesting && "animate-pulse")} />
-                AI Prompt
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-widest font-bold">Enhance</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleEnhanceContent("improve-writing")} className="gap-2 text-xs font-medium">
+                <Wand2 className="h-3.5 w-3.5" /> Improve Writing
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEnhanceContent("fix-grammar")} className="gap-2 text-xs font-medium">
+                <SpellCheck className="h-3.5 w-3.5" /> Fix Grammar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEnhanceContent("make-shorter")} className="gap-2 text-xs font-medium">
+                <Shrink className="h-3.5 w-3.5" /> Make Shorter
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEnhanceContent("make-longer")} className="gap-2 text-xs font-medium">
+                <Expand className="h-3.5 w-3.5" /> Make Longer
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEnhanceContent("change-tone")} className="gap-2 text-xs font-medium">
+                <Speech className="h-3.5 w-3.5" /> Professional Tone
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-widest font-bold">Translate</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleEnhanceContent("translate-arabic")} className="gap-2 text-xs font-medium">
+                <Languages className="h-3.5 w-3.5" /> إلى العربية
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEnhanceContent("translate-english")} className="gap-2 text-xs font-medium">
+                <Languages className="h-3.5 w-3.5" /> To English
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-[10px] uppercase tracking-widest font-bold">Text Direction</DropdownMenuLabel>
@@ -252,6 +354,11 @@ export function EditorView({ initialDoc }: EditorViewProps) {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setTextDir("auto")} className={cn("text-xs font-medium gap-2", textDir === "auto" && "bg-muted")}>
                 <span className="text-[10px] font-black w-3.5 text-center">A</span>Auto
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleAISuggestion} disabled={isSuggesting} className="gap-2 text-xs font-medium">
+                <Sparkles className={cn("h-3.5 w-3.5", isSuggesting && "animate-pulse")} />
+                Generate Title & Summary
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -392,6 +499,18 @@ export function EditorView({ initialDoc }: EditorViewProps) {
           </div>
         )}
       </div>
+
+      {/* ── AI Enhancement Dialog ── */}
+      <AIEnhanceDialog
+        open={aiDialogOpen}
+        onOpenChange={setAiDialogOpen}
+        enhanceType={aiEnhanceType}
+        originalContent={currentDoc.content}
+        enhancedContent={aiEnhancedContent}
+        summary={aiSummary}
+        isGenerating={isGeneratingEnhance}
+        onApply={handleApplyEnhancement}
+      />
     </div>
   );
 }
