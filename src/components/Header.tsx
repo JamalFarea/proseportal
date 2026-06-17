@@ -9,10 +9,12 @@ import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useBranding } from "./BrandingProvider";
 
 export function Header() {
   const { user } = useUser();
   const auth = useAuth();
+  const { settings } = useBranding();
 
   const handleLogout = async () => {
     if (auth) await signOut(auth);
@@ -22,10 +24,14 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
       <div className="container mx-auto px-4 flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 font-extrabold text-xl tracking-tighter hover:opacity-90 transition-opacity">
-          <div className="bg-primary p-1.5 rounded-xl">
-            <Layout className="h-5 w-5 text-primary-foreground" />
+          <div className="bg-primary p-1.5 rounded-xl flex items-center justify-center w-8 h-8 text-primary-foreground select-none">
+            {settings.brandLogo ? (
+              <span className="text-sm leading-none font-bold">{settings.brandLogo}</span>
+            ) : (
+              <Layout className="h-4 w-4" />
+            )}
           </div>
-          <span className="hidden sm:inline">ProsePortal</span>
+          <span className="hidden sm:inline">{settings.brandName || "ProsePortal"}</span>
         </Link>
         
         <div className="flex items-center gap-4">
@@ -50,7 +56,14 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/settings">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Workspace Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>
