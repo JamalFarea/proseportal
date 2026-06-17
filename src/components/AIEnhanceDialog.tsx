@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sparkles, Check, X, Loader2, FileText, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isRTL } from "@/lib/markdown";
 
 interface AIEnhanceDialogProps {
   open: boolean;
@@ -82,7 +83,10 @@ export function AIEnhanceDialog({
                   <FileText className="h-3 w-3" />
                   Original
                 </div>
-                <div className="border border-border bg-muted/30 p-4 text-sm font-mono leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto">
+                <div
+                  className="border border-border bg-muted/30 p-4 text-sm font-mono leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto"
+                  dir={isRTL(originalContent) ? "rtl" : "ltr"}
+                >
                   {originalContent || "No content"}
                 </div>
               </div>
@@ -92,7 +96,10 @@ export function AIEnhanceDialog({
                   <Sparkles className="h-3 w-3" />
                   Enhanced
                 </div>
-                <div className="border border-primary/30 bg-primary/5 p-4 text-sm font-mono leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto">
+                <div
+                  className="border border-primary/30 bg-primary/5 p-4 text-sm font-mono leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto"
+                  dir={isRTL(enhancedContent) ? "rtl" : "ltr"}
+                >
                   {enhancedContent}
                 </div>
               </div>
