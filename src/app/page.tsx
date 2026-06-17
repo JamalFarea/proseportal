@@ -1,19 +1,24 @@
 
 "use client"
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useFirestore, useUser, useCollection } from "@/firebase";
 import { collection, query, orderBy, deleteDoc, doc, setDoc, updateDoc } from "firebase/firestore";
 import { Document, Folder } from "@/lib/types";
 import { Header } from "@/components/Header";
 import { DocumentCard } from "@/components/DocumentCard";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, FileX, Folder as FolderIcon, Hash, Settings2, ShieldCheck, Cloud } from "lucide-react";
+import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
+import { Plus, Upload, Search, FileX, Folder as FolderIcon, Hash, Settings2, ShieldCheck, Cloud } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
@@ -92,6 +97,52 @@ export default function Dashboard() {
         operation: 'delete'
       }));
     });
+  };
+
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadSchema = z.object({
+    files: z
+      .instanceof(FileList)
+      .refine((files) => files.length > 0, "Select at least one .md file")
+      .refine((files) => Array.from(files).every((f) => f.name.endsWith(".md")), "Only .md files allowed"),
+  });
+
+  const form = useForm<z.infer<typeof uploadSchema>>({
+    resolver: zodResolver(uploadSchema),
+  });
+
+  const handleUpload = async (data: z.infer<typeof uploadSchema>) => {
+    if (!firestore || !user) return;
+    const files = Array.from(data.files);
+    let uploaded = 0;
+
+    for (const file of files) {
+      try {
+        const content = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsText(file);
+        });
+        const title = file.name.replace(/\.md$/i, "");
+        const docRef = doc(collection(firestore, 'users', user.uid, 'documents'));
+        await setDoc(docRef, {
+          title,
+          content,
+          updatedAt: Date.now(),
+          userId: user.uid,
+          folderId: selectedFolderId || "",
+        });
+        uploaded++;
+      } catch {
+        toast({ variant: "destructive", title: "Upload Failed", description: `Could not read ${file.name}` });
+      }
+    }
+    toast({ title: "Upload Complete", description: `${uploaded} of ${files.length} documents saved.` });
+    form.reset();
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleMoveToFolder = (docId: string, folderId: string) => {
@@ -217,10 +268,48 @@ export default function Dashboard() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button onClick={handleCreateNew} className="gap-2 rounded-none px-6 bg-black hover:opacity-90 dark:bg-white text-white dark:text-black font-black h-10 uppercase text-[10px] tracking-widest transition-transform active:scale-95">
-                <Plus className="h-4 w-4" />
-                Create
-              </Button>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleUpload)}>
+                  <FormField
+                    control={form.control}
+                    name="files"
+                    render={({ field: { onChange, ...field } }) => (
+                      <FormItem>
+                        <FormControl>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".md"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              const files = e.target.files;
+                              if (files && files.length > 0) {
+                                onChange(files);
+                                form.handleSubmit(handleUpload)();
+                              }
+                            }}
+                            {...field}
+                            value=""
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="gap-2 rounded-none px-5 border-2 border-dashed border-border bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black font-black h-10 uppercase text-[10px] tracking-widest transition-transform active:scale-95"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Import
+                  </Button>
+                  <Button onClick={handleCreateNew} className="gap-2 rounded-none px-6 bg-black hover:opacity-90 dark:bg-white text-white dark:text-black font-black h-10 uppercase text-[10px] tracking-widest transition-transform active:scale-95">
+                    <Plus className="h-4 w-4" />
+                    Create
+                  </Button>
+                </form>
+              </Form>
             </div>
           </div>
 
