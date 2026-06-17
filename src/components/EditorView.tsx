@@ -75,6 +75,7 @@ export function EditorView({ initialDoc }: EditorViewProps) {
   const firestore     = useFirestore();
   const { user }      = useUser();
   const previewRef    = useRef<HTMLDivElement>(null);
+  const editorRef     = useRef<any>(null);
 
   // ── Detect and sync theme with the GitHub MD stylesheet ──────────────────
   useEffect(() => {
@@ -179,6 +180,23 @@ export function EditorView({ initialDoc }: EditorViewProps) {
       rules: [],
       colors: {
         'editor.background': '#00000000',
+      }
+    });
+  };
+
+  const handleEditorDidMount = (editor: any, monaco: any) => {
+    editorRef.current = editor;
+    const container = editor.getContainerDomNode();
+    container.addEventListener('paste', (e: Event) => {
+      const clipboardEvent = e as ClipboardEvent;
+      const text = clipboardEvent.clipboardData?.getData('text/plain');
+      if (text) {
+        e.preventDefault();
+        editor.executeEdits('paste', [{
+          range: editor.getSelection() || new monaco.Range(1, 1, 1, 1),
+          text,
+          forceMoveMarkers: true,
+        }]);
       }
     });
   };
@@ -313,6 +331,7 @@ export function EditorView({ initialDoc }: EditorViewProps) {
               value={currentDoc.content}
               onChange={handleEditorChange}
               beforeMount={handleEditorBeforeMount}
+              onMount={handleEditorDidMount}
               theme={dark ? "transparent-dark" : "transparent-light"}
               options={{
                 minimap:                    { enabled: false },
