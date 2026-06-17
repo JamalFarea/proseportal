@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 0 0% 0%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 0%;
+    --radius: 0px;
+  }
+  .dark {
+    /* GitHub Dark Default Colors */
+    --background: 216 28% 7%;
+    --foreground: 210 18% 82%;
+    --card: 216 28% 7%;
+    --card-foreground: 210 18% 82%;
+    --popover: 216 28% 7%;
+    --popover-foreground: 210 18% 82%;
+    --primary: 212 100% 67%;
+    --primary-foreground: 216 28% 7%;
+    --secondary: 212 12% 21%;
+    --secondary-foreground: 210 18% 82%;
+    --muted: 212 12% 18%;
+    --muted-foreground: 211 10% 58%;
+    --accent: 212 12% 21%;
+    --accent-foreground: 210 18% 82%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 18% 82%;
+    --border: 212 12% 21%;
+    --input: 212 12% 21%;
+    --ring: 212 100% 67%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-body antialiased selection:bg-primary selection:text-primary-foreground;
+  }
+}
+
+.prose-markdown {
+  @apply text-foreground leading-relaxed break-words max-w-none;
+}
+.prose-markdown h1 { @apply text-4xl font-black mb-6 mt-10 tracking-tighter uppercase; }
+.prose-markdown h2 { @apply text-2xl font-black mb-4 mt-8 tracking-tighter uppercase border-b pb-2 border-border; }
+.prose-markdown h3 { @apply text-xl font-bold mb-3 mt-6 tracking-tight; }
+.prose-markdown p { @apply mb-5 leading-7 text-foreground/90 font-medium; }
+.prose-markdown ul { @apply list-disc pl-6 mb-5 space-y-2; }
+.prose-markdown ol { @apply list-decimal pl-6 mb-5 space-y-2; }
+.prose-markdown blockquote { @apply border-l-4 border-primary pl-4 italic text-muted-foreground mb-6 bg-muted/30 py-4 px-6; }
+.prose-markdown code { @apply font-code bg-muted px-1.5 py-0.5 rounded-none text-sm font-bold; }
+.prose-markdown pre { @apply bg-black p-6 rounded-none overflow-x-auto mb-6 border border-white/10; }
+.prose-markdown pre code { @apply bg-transparent p-0 block whitespace-pre text-sm text-white font-normal; }

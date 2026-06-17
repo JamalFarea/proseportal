@@ -1,0 +1,43 @@
+
+{
+  "entities": {
+    "Document": {
+      "title": "Document",
+      "description": "A markdown document owned by a user.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "summary": { "type": "string" },
+        "folderId": { "type": "string" },
+        "updatedAt": { "type": "number" },
+        "userId": { "type": "string" }
+      },
+      "required": ["title", "content", "updatedAt", "userId"]
+    },
+    "Folder": {
+      "title": "Folder",
+      "description": "A group for organizing documents.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["name", "userId", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/users/{userId}/folders/{folderId}": {
+      "schema": { "$ref": "#/backend/entities/Folder" },
+      "description": "Folders created by the user."
+    },
+    "/users/{userId}/documents/{docId}": {
+      "schema": { "$ref": "#/backend/entities/Document" },
+      "description": "Documents created by the user."
+    }
+  }
+}
