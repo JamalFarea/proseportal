@@ -2,9 +2,10 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Document } from "@/lib/types";
 import { useFirestore, useUser } from "@/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, collection, setDoc, updateDoc } from "firebase/firestore";
 import { parseMarkdown, isRTL } from "@/lib/markdown";
 import { aiContentSuggestions } from "@/ai/flows/ai-content-suggestions";
 import { aiEnhanceContent } from "@/ai/flows/ai-enhance-content";
@@ -75,6 +76,8 @@ export function EditorView({ initialDoc }: EditorViewProps) {
   const resolvedDir = textDir === "auto" ? (isRTL(currentDoc.content) ? "rtl" : "ltr") : textDir;
 
   const [isMobile, setIsMobile] = useState(false);
+
+  const router = useRouter();
 
   // ── AI Enhancement Dialog state ──
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
@@ -207,7 +210,28 @@ export function EditorView({ initialDoc }: EditorViewProps) {
   };
 
   const handleApplyEnhancement = () => {
-    if (aiEnhancedContent) {
+    if (!aiEnhancedContent || !firestore || !user) return;
+
+    const isTranslation = aiEnhanceType === "translate-arabic" || aiEnhanceType === "translate-english";
+
+    if (isTranslation) {
+      const suffix = aiEnhanceType === "translate-arabic" ? " (Arabic)" : " (English)";
+      const docData = {
+        title: currentDoc.title + suffix,
+        content: aiEnhancedContent,
+        updatedAt: Date.now(),
+        userId: user.uid,
+        folderId: currentDoc.folderId || "",
+      };
+      const docRef = doc(collection(firestore, "users", user.uid, "documents"));
+      setDoc(docRef, docData).catch(e => {
+        errorEmitter.emit("permission-error", new FirestorePermissionError({
+          path: docRef.path, operation: "create", requestResourceData: docData,
+        }));
+      });
+      toast({ title: "New file created", description: `"${currentDoc.title}${suffix}" has been created.` });
+      router.push(`/editor/${docRef.id}`);
+    } else {
       setCurrentDoc(prev => ({ ...prev, content: aiEnhancedContent! }));
       toast({ title: "Applied", description: "Enhanced content has been applied." });
     }
