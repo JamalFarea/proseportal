@@ -71,11 +71,19 @@ export function EditorView({ initialDoc }: EditorViewProps) {
   const [textDir, setTextDir]       = useState<"ltr" | "rtl" | "auto">("ltr");
   const resolvedDir = textDir === "auto" ? (isRTL(currentDoc.content) ? "rtl" : "ltr") : textDir;
 
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   const { toast }     = useToast();
   const firestore     = useFirestore();
   const { user }      = useUser();
   const previewRef    = useRef<HTMLDivElement>(null);
-  const editorRef     = useRef<any>(null);
 
   // ── Detect and sync theme with the GitHub MD stylesheet ──────────────────
   useEffect(() => {
@@ -180,23 +188,6 @@ export function EditorView({ initialDoc }: EditorViewProps) {
       rules: [],
       colors: {
         'editor.background': '#00000000',
-      }
-    });
-  };
-
-  const handleEditorDidMount = (editor: any, monaco: any) => {
-    editorRef.current = editor;
-    const container = editor.getContainerDomNode();
-    container.addEventListener('paste', (e: Event) => {
-      const clipboardEvent = e as ClipboardEvent;
-      const text = clipboardEvent.clipboardData?.getData('text/plain');
-      if (text) {
-        e.preventDefault();
-        editor.executeEdits('paste', [{
-          range: editor.getSelection() || new monaco.Range(1, 1, 1, 1),
-          text,
-          forceMoveMarkers: true,
-        }]);
       }
     });
   };
@@ -322,34 +313,43 @@ export function EditorView({ initialDoc }: EditorViewProps) {
       {/* ── Panes ── */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
 
-        {/* Monaco editor */}
+        {/* Editor pane — textarea on mobile, Monaco on desktop */}
         {(viewMode === "both" || viewMode === "editor") && (
           <div className="flex-1 h-full overflow-hidden bg-card">
-            <Editor
-              height="100%"
-              defaultLanguage="markdown"
-              value={currentDoc.content}
-              onChange={handleEditorChange}
-              beforeMount={handleEditorBeforeMount}
-              onMount={handleEditorDidMount}
-              theme={dark ? "transparent-dark" : "transparent-light"}
-              options={{
-                minimap:                    { enabled: false },
-                fontSize:                   14,
-                fontFamily:                 "Source Code Pro, monospace",
-                wordWrap:                   "on",
-                padding:                    { top: 32, bottom: 32 },
-                lineNumbers:                "on",
-                lineHeight:                 1.8,
-                scrollBeyondLastLine:       false,
-                cursorSmoothCaretAnimation: "on",
-                smoothScrolling:            true,
-                hover:                      { enabled: false },
-                quickSuggestions:           false,
-                folding:                    false,
-                automaticLayout:            true,
-              }}
-            />
+            {isMobile ? (
+              <textarea
+                value={currentDoc.content}
+                onChange={(e) => handleEditorChange(e.target.value)}
+                className="w-full h-full resize-none bg-transparent p-8 font-mono text-sm leading-relaxed outline-none"
+                style={{ fontFamily: "'Source Code Pro', monospace" }}
+                dir={resolvedDir}
+              />
+            ) : (
+              <Editor
+                height="100%"
+                defaultLanguage="markdown"
+                value={currentDoc.content}
+                onChange={handleEditorChange}
+                beforeMount={handleEditorBeforeMount}
+                theme={dark ? "transparent-dark" : "transparent-light"}
+                options={{
+                  minimap:                    { enabled: false },
+                  fontSize:                   14,
+                  fontFamily:                 "Source Code Pro, monospace",
+                  wordWrap:                   "on",
+                  padding:                    { top: 32, bottom: 32 },
+                  lineNumbers:                "on",
+                  lineHeight:                 1.8,
+                  scrollBeyondLastLine:       false,
+                  cursorSmoothCaretAnimation: "on",
+                  smoothScrolling:            true,
+                  hover:                      { enabled: false },
+                  quickSuggestions:           false,
+                  folding:                    false,
+                  automaticLayout:            true,
+                }}
+              />
+            )}
           </div>
         )}
 
