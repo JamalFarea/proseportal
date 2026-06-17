@@ -302,7 +302,7 @@ export function EditorView({ initialDoc }: EditorViewProps) {
       )}
 
       {/* ── Panes ── */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
 
         {/* Monaco editor */}
         {(viewMode === "both" || viewMode === "editor") && (
@@ -338,7 +338,7 @@ export function EditorView({ initialDoc }: EditorViewProps) {
         {(viewMode === "both" || viewMode === "preview") && (
           <div
             className={cn(
-              "flex-1 overflow-y-auto border-l bg-background",
+              "flex-1 overflow-y-auto border-l md:border-l border-t md:border-t-0 bg-background",
             )}
             dir={resolvedDir}
           >
