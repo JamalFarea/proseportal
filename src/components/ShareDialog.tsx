@@ -77,6 +77,21 @@ export function ShareDialog({ open, onOpenChange }: ShareDialogProps) {
         invitedAt: Date.now(),
       });
 
+      try {
+        await fetch("/api/invite/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            invitedEmail: email.toLowerCase().trim(),
+            ownerName: user.displayName || "Workspace Owner",
+            role,
+            inviteId,
+          }),
+        });
+      } catch {
+        console.warn("Email notification failed, invite still saved.");
+      }
+
       toast({
         title: "Invitation Sent",
         description: `${email} has been invited as ${role}. They'll receive an email.`,
