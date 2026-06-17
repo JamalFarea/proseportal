@@ -47,6 +47,12 @@
   --radius-xl: calc(var(--radius) + 4px);
   --font-sans: var(--font-body, ui-sans-serif, system-ui, sans-serif);
   --font-mono: var(--font-code, ui-monospace, monospace);
+  --animate-infinite-progress: infinite-progress 1.5s linear infinite;
+}
+
+@keyframes infinite-progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 /* ── Default fallback variables (overridden by data-theme blocks) ── */

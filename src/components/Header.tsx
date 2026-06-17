@@ -22,19 +22,19 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
-      <div className="container mx-auto px-4 flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5 font-extrabold text-xl tracking-tighter hover:opacity-90 transition-opacity">
-          <div className="bg-primary p-1.5 rounded-xl flex items-center justify-center w-8 h-8 text-primary-foreground select-none">
+      <div className="container mx-auto px-3 sm:px-4 flex h-14 sm:h-16 items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 sm:gap-2.5 font-extrabold text-lg sm:text-xl tracking-tighter hover:opacity-90 transition-opacity">
+          <div className="bg-primary p-1.5 rounded-xl flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 text-primary-foreground select-none">
             {settings.brandLogo ? (
-              <span className="text-sm leading-none font-bold">{settings.brandLogo}</span>
+              <span className="text-xs sm:text-sm leading-none font-bold">{settings.brandLogo}</span>
             ) : (
-              <Layout className="h-4 w-4" />
+              <Layout className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             )}
           </div>
           <span className="hidden sm:inline">{settings.brandName || "ProsePortal"}</span>
         </Link>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <ThemeToggle />
           {user ? (
             <DropdownMenu>

@@ -197,7 +197,7 @@ export function EditorView({ initialDoc }: EditorViewProps) {
       <Header />
 
       {/* ── Toolbar ── */}
-      <div className="border-b bg-background/80 backdrop-blur-md px-4 h-14 flex items-center justify-between sticky top-0 z-10">
+      <div className="border-b bg-background/80 backdrop-blur-md px-2 sm:px-4 h-14 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3 flex-1 overflow-hidden">
           <Button variant="ghost" size="icon" asChild className="h-8 w-8 rounded-md shrink-0">
             <Link href="/"><ChevronLeft className="h-4 w-4" /></Link>
@@ -217,8 +217,8 @@ export function EditorView({ initialDoc }: EditorViewProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 ml-4">
-          {/* AI Prompt button */}
+        <div className="flex items-center gap-1 sm:gap-3 ml-2 sm:ml-4">
+          {/* AI Prompt — hidden on small mobile, accessible via dropdown */}
           <Button
             variant="outline"
             size="sm"
@@ -227,10 +227,36 @@ export function EditorView({ initialDoc }: EditorViewProps) {
             className="hidden sm:flex h-8 gap-2 border-border/50 bg-secondary/30 hover:bg-secondary/50 text-xs font-semibold"
           >
             <Sparkles className={cn("h-3 w-3", isSuggesting && "animate-pulse")} />
-            AI Prompt
+            <span className="hidden md:inline">AI Prompt</span>
           </Button>
 
-          {/* Text Direction dropdown */}
+          {/* More actions dropdown (mobile: AI Prompt + Text Direction) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="sm:hidden h-8 w-8 rounded-md">
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={handleAISuggestion} disabled={isSuggesting} className="gap-2 text-xs font-medium">
+                <Sparkles className={cn("h-3.5 w-3.5", isSuggesting && "animate-pulse")} />
+                AI Prompt
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-widest font-bold">Text Direction</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => setTextDir("ltr")} className={cn("text-xs font-medium gap-2", textDir === "ltr" && "bg-muted")}>
+                <AlignLeft className="h-3.5 w-3.5" />LTR
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTextDir("rtl")} className={cn("text-xs font-medium gap-2", textDir === "rtl" && "bg-muted")}>
+                <AlignRight className="h-3.5 w-3.5" />RTL
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTextDir("auto")} className={cn("text-xs font-medium gap-2", textDir === "auto" && "bg-muted")}>
+                <span className="text-[10px] font-black w-3.5 text-center">A</span>Auto
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Text Direction — desktop only */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -250,26 +276,14 @@ export function EditorView({ initialDoc }: EditorViewProps) {
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuLabel className="text-[10px] uppercase tracking-widest font-bold">Text Direction</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setTextDir("ltr")}
-                className={cn("text-xs font-medium gap-2", textDir === "ltr" && "bg-muted")}
-              >
-                <AlignLeft className="h-3.5 w-3.5" />
-                LTR — Left to Right
+              <DropdownMenuItem onClick={() => setTextDir("ltr")} className={cn("text-xs font-medium gap-2", textDir === "ltr" && "bg-muted")}>
+                <AlignLeft className="h-3.5 w-3.5" />LTR — Left to Right
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setTextDir("rtl")}
-                className={cn("text-xs font-medium gap-2", textDir === "rtl" && "bg-muted")}
-              >
-                <AlignRight className="h-3.5 w-3.5" />
-                RTL — Right to Left
+              <DropdownMenuItem onClick={() => setTextDir("rtl")} className={cn("text-xs font-medium gap-2", textDir === "rtl" && "bg-muted")}>
+                <AlignRight className="h-3.5 w-3.5" />RTL — Right to Left
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setTextDir("auto")}
-                className={cn("text-xs font-medium gap-2", textDir === "auto" && "bg-muted")}
-              >
-                <span className="text-[10px] font-black w-3.5 text-center">A</span>
-                Auto — Detect
+              <DropdownMenuItem onClick={() => setTextDir("auto")} className={cn("text-xs font-medium gap-2", textDir === "auto" && "bg-muted")}>
+                <span className="text-[10px] font-black w-3.5 text-center">A</span>Auto — Detect
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -291,17 +305,17 @@ export function EditorView({ initialDoc }: EditorViewProps) {
             size="sm"
             onClick={handleSave}
             disabled={isSaving}
-            className="h-8 gap-2 bg-primary text-primary-foreground font-bold px-4"
+            className="h-8 gap-2 bg-primary text-primary-foreground font-bold px-3 sm:px-4 text-[10px] sm:text-xs"
           >
             <Save className={cn("h-3.5 w-3.5", isSaving && "animate-spin")} />
-            Deploy
+            <span className="hidden sm:inline">Deploy</span>
           </Button>
         </div>
       </div>
 
       {/* ── AI summary strip ── */}
       {currentDoc.summary && (
-        <div className="bg-primary/5 border-b px-8 py-2 flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-500">
+        <div className="bg-primary/5 border-b px-4 sm:px-8 py-2 flex items-center gap-3">
           <AlignLeft className="h-3 w-3 text-primary opacity-50 shrink-0" />
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground truncate">
             <span className="text-primary mr-2 opacity-100 font-black">AI Summary:</span>
@@ -320,7 +334,7 @@ export function EditorView({ initialDoc }: EditorViewProps) {
               <textarea
                 value={currentDoc.content}
                 onChange={(e) => handleEditorChange(e.target.value)}
-                className="w-full h-full resize-none bg-transparent p-8 font-mono text-sm leading-relaxed outline-none"
+                className="w-full h-full resize-none bg-transparent p-4 sm:p-8 font-mono text-sm leading-relaxed outline-none"
                 style={{ fontFamily: "'Source Code Pro', monospace" }}
                 dir={resolvedDir}
               />
@@ -365,8 +379,8 @@ export function EditorView({ initialDoc }: EditorViewProps) {
               ref={previewRef}
               id="md-preview-output"
               /* markdown-body is the key class — GitHub MD CSS scopes everything under it */
-              className="markdown-body"
-              style={{ padding: '16px 32px 32px 32px', minHeight: '100%' }}
+              className="markdown-body sm:px-8"
+              style={{ padding: '16px 16px 32px 16px', minHeight: '100%' }}
               dangerouslySetInnerHTML={{ __html: html }}
             />
             {!html && (

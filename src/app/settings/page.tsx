@@ -134,14 +134,15 @@ export default function SettingsPage() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-3xl font-black uppercase tracking-tighter">Workspace Settings</h1>
+              <h1 className="text-xl sm:text-3xl font-black uppercase tracking-tighter">Workspace Settings</h1>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 Customize colors, select themes, and control branding parameters.
               </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleReset} className="h-9 px-4 text-xs font-bold uppercase tracking-widest rounded-none border-dashed border-destructive hover:bg-destructive/10 hover:text-destructive">
-            Reset Defaults
+          <Button variant="outline" size="sm" onClick={handleReset} className="h-9 px-3 sm:px-4 text-[10px] sm:text-xs font-bold uppercase tracking-widest rounded-none border-dashed border-destructive hover:bg-destructive/10 hover:text-destructive">
+            <span className="hidden sm:inline">Reset Defaults</span>
+            <span className="sm:hidden">Reset</span>
           </Button>
         </div>
 
