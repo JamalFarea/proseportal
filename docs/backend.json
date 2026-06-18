@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "Document": {
@@ -25,19 +24,81 @@
         "createdAt": { "type": "number" }
       },
       "required": ["name", "userId", "createdAt"]
+    },
+    "Invite": {
+      "title": "Invite",
+      "description": "A pending workspace invitation.",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string" },
+        "ownerEmail": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "invitedEmail": { "type": "string" },
+        "role": { "type": "string", "enum": ["editor", "viewer"] },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "invitedAt": { "type": "number" }
+      },
+      "required": ["ownerUid", "invitedEmail", "role", "status", "invitedAt"]
+    },
+    "WorkspaceMember": {
+      "title": "WorkspaceMember",
+      "description": "A member who accepted a workspace invite.",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["editor", "viewer"] },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "addedAt": { "type": "number" }
+      },
+      "required": ["role", "email", "addedAt"]
+    },
+    "SharedWorkspace": {
+      "title": "SharedWorkspace",
+      "description": "A workspace shared with this user (stored on the invitee's profile).",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["editor", "viewer"] },
+        "ownerEmail": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "addedAt": { "type": "number" }
+      },
+      "required": ["role", "ownerEmail", "addedAt"]
     }
   },
   "auth": {
-    "providers": ["google.com", "password"]
+    "providers": ["google.com", "password"],
+    "guest_mode": true
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": { "type": "object", "properties": { "email": { "type": "string" }, "displayName": { "type": "string" }, "photoURL": { "type": "string" }, "createdAt": { "type": "number" } } },
+      "description": "User profile."
+    },
     "/users/{userId}/folders/{folderId}": {
-      "schema": { "$ref": "#/backend/entities/Folder" },
+      "schema": { "$ref": "#/entities/Folder" },
       "description": "Folders created by the user."
     },
     "/users/{userId}/documents/{docId}": {
-      "schema": { "$ref": "#/backend/entities/Document" },
+      "schema": { "$ref": "#/entities/Document" },
       "description": "Documents created by the user."
+    },
+    "/users/{userId}/workspace-members/{memberUid}": {
+      "schema": { "$ref": "#/entities/WorkspaceMember" },
+      "description": "Members who accepted workspace invites (owner's view)."
+    },
+    "/users/{userId}/shared-workspaces/{ownerUid}": {
+      "schema": { "$ref": "#/entities/SharedWorkspace" },
+      "description": "Workspaces shared with this user (invitee's view)."
+    },
+    "/invites/{inviteId}": {
+      "schema": { "$ref": "#/entities/Invite" },
+      "description": "Pending, accepted, or declined invitations."
     }
+  },
+  "ai": {
+    "provider": "google-genai",
+    "model": "gemini-2.5-flash",
+    "flows": ["aiContentSuggestions", "aiEnhanceContent"],
+    "enhance_types": ["improve-writing", "fix-grammar", "make-shorter", "make-longer", "change-tone", "translate-arabic", "translate-english"]
   }
 }

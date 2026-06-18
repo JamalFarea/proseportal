@@ -33,8 +33,8 @@ export async function POST(request: Request) {
         accessToken: emailjsPrivateKey,
         template_params: {
           to_email: invitedEmail,
-          to_name: invitedEmail.split("@")[0],
           from_name: ownerName,
+          to_name: invitedEmail.split("@")[0],
           role: role,
           accept_url: acceptUrl,
           workspace_name: `${ownerName}'s Workspace`,
